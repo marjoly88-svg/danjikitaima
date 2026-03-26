@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>16時間断食タイマー</title>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Maru+Gothic:wght@400;500;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #fdf6f8; font-family: 'Zen Maru Gothic', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 48px; }
+
+h1 { font-family: 'Kaisei Decol', sans-serif; font-weight: 400; color: #e8688a; font-size: 22px; margin-bottom: 24px; text-align: center; }
+
+.card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(140,80,100,0.08); border: 0.5px solid rgba(180,120,140,0.12); padding: 20px; width: 100%; max-width: 360px; margin-bottom: 16px; }
+
+/* リング */
+.ring-wrap { display: flex; justify-content: center; align-items: center; padding: 8px 0 16px; }
+svg.ring { transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: #fdeef2; stroke-width: 14; }
+.ring-fill { fill: none; stroke: #e8688a; stroke-width: 14; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.ring-fill.eating { stroke: #5dab80; }
+
+.ring-inner { position: absolute; text-align: center; }
+.ring-time { font-family: 'DM Mono', monospace; font-size: 36px; font-weight: 400; color: #3d2b33; line-height: 1; }
+.ring-label { font-size: 12px; color: #b8949f; margin-top: 6px; }
+.ring-emoji { font-size: 22px; margin-bottom: 4px; }
+
+.ring-container { position: relative; display: flex; justify-content: center; align-items: center; width: 200px; height: 200px; }
+
+/* ステータス */
+.status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.status-badge.fasting { background: #fdeef2; color: #e8688a; }
+.status-badge.eating { background: #edf7f1; color: #5dab80; }
+
+.info-row { display: flex; justify-content: space-between; font-size: 12px; color: #b8949f; margin-bottom: 4px; }
+.info-row span:last-child { color: #3d2b33; font-weight: 500; font-family: 'DM Mono', monospace; }
+
+/* ボタン */
+.btn { width: 100%; max-width: 360px; padding: 14px; border: none; border-radius: 12px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; margin-bottom: 10px; }
+.btn:active { opacity: 0.8; }
+.btn-start { background: #e8688a; color: #fff; }
+.btn-stop { background: #5dab80; color: #fff; }
+.btn-reset { background: transparent; border: 1px solid rgba(180,120,140,0.2); color: #b8949f; font-size: 13px; padding: 10px; }
+
+/* 目標設定 */
+.goal-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.goal-row label { font-size: 13px; color: #7d5f6b; flex: 1; }
+.goal-row select { background: #fff7f9; border: 1px solid rgba(180,120,140,0.2); border-radius: 8px; padding: 6px 10px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 13px; color: #3d2b33; outline: none; }
+
+/* 履歴 */
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 0.5px solid rgba(180,120,140,0.06); font-size: 13px; }
+.history-item:last-child { border-bottom: none; }
+.history-date { color: #7d5f6b; font-family: 'DM Mono', monospace; }
+.history-duration { color: #3d2b33; font-weight: 600; font-family: 'DM Mono', monospace; }
+.history-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+.history-badge.clear { background: #edf7f1; color: #5dab80; }
+.history-badge.fail { background: #fdf0f0; color: #d46a6a; }
+
+.section-title { font-size: 13px; font-weight: 700; color: #3d2b33; margin-bottom: 12px; font-family: 'Kaisei Decol', sans-serif; }
+.empty { text-align: center; color: #b8949f; font-size: 13px; padding: 16px 0; }
+.streak { text-align: center; font-size: 13px; color: #b8949f; margin-top: 8px; }
+.streak span { color: #e8688a; font-weight: 700; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<h1>🌸 16時間断食タイマー</h1>
+
+<!-- メインカード -->
+<div class="card" style="text-align:center;">
+  <div id="statusBadge" class="status-badge fasting">断食中 🔥</div>
+  <div class="ring-wrap">
+    <div class="ring-container">
+      <svg class="ring" width="200" height="200" viewBox="0 0 200 200">
+        <circle class="ring-bg" cx="100" cy="100" r="86"/>
+        <circle class="ring-fill" id="ringFill" cx="100" cy="100" r="86"/>
+      </svg>
+      <div class="ring-inner">
+        <div class="ring-emoji" id="ringEmoji">🔥</div>
+        <div class="ring-time" id="timerDisplay">00:00:00</div>
+        <div class="ring-label" id="timerLabel">経過時間</div>
+      </div>
+    </div>
+  </div>
+  <div class="info-row"><span>目標</span><span id="goalDisplay">16時間</span></div>
+  <div class="info-row"><span>開始時刻</span><span id="startDisplay">--:--</span></div>
+  <div class="info-row"><span>終了予定</span><span id="endDisplay">--:--</span></div>
+  <div class="streak" id="streakDisplay"></div>
+</div>
+
+<!-- 目標設定 -->
+<div class="card">
+  <div class="section-title">⚙️ せってい</div>
+  <div class="goal-row">
+    <label>断食時間の目標</label>
+    <select id="goalSelect" onchange="changeGoal()">
+      <option value="12">12時間</option>
+      <option value="14">14時間</option>
+      <option value="16" selected>16時間</option>
+      <option value="18">18時間</option>
+      <option value="20">20時間</option>
+    </select>
+  </div>
+</div>
+
+<!-- ボタン -->
+<button class="btn btn-start" id="mainBtn" onclick="toggleFast()">断食スタート 🔥</button>
+<button class="btn btn-reset" onclick="resetFast()">リセット</button>
+
+<!-- 履歴 -->
+<div class="card" style="margin-top:8px;">
+  <div class="section-title">📋 履歴</div>
+  <div id="historyList"><div class="empty">まだ記録がないよ</div></div>
+</div>
+
+<script>
+const KEYS = { start: 'fast-start', goal: 'fast-goal', history: 'fast-history' };
+const circumference = 2 * Math.PI * 86;
+
+let timerInterval = null;
+let goalHours = parseInt(localStorage.getItem(KEYS.goal) || '16');
+let startTime = localStorage.getItem(KEYS.start) ? new Date(localStorage.getItem(KEYS.start)) : null;
+let history = JSON.parse(localStorage.getItem(KEYS.history) || '[]');
+
+document.getElementById('goalSelect').value = goalHours;
+document.getElementById('ringFill').style.strokeDasharray = circumference;
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtTime(d) { return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtDate(d) { return `${d.getMonth()+1}/${d.getDate()}`; }
+function fmtDuration(ms) {
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  const s = Math.floor((ms%60000)/1000);
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+function changeGoal() {
+  goalHours = parseInt(document.getElementById('goalSelect').value);
+  localStorage.setItem(KEYS.goal, goalHours);
+  document.getElementById('goalDisplay').textContent = goalHours + '時間';
+  updateUI();
+}
+
+function toggleFast() {
+  if (!startTime) {
+    // スタート
+    startTime = new Date();
+    localStorage.setItem(KEYS.start, startTime.toISOString());
+    startTimer();
+  } else {
+    // 終了
+    stopFast(true);
+  }
+}
+
+function stopFast(save) {
+  if (!startTime) return;
+  const elapsed = Date.now() - startTime.getTime();
+  const goalMs = goalHours * 3600000;
+  const cleared = elapsed >= goalMs;
+
+  if (save) {
+    history.unshift({
+      date: fmtDate(startTime),
+      start: fmtTime(startTime),
+      duration: fmtDuration(elapsed),
+      durationMs: elapsed,
+      goalMs,
+      cleared
+    });
+    if (history.length > 30) history = history.slice(0,30);
+    localStorage.setItem(KEYS.history, JSON.stringify(history));
+  }
+
+  startTime = null;
+  localStorage.removeItem(KEYS.start);
+  clearInterval(timerInterval);
+  timerInterval = null;
+  updateUI();
+  renderHistory();
+}
+
+function resetFast() {
+  if (!confirm('タイマーをリセットしていい？')) return;
+  startTime = null;
+  localStorage.removeItem(KEYS.start);
+  clearInterval(timerInterval);
+  timerInterval = null;
+  updateUI();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(updateUI, 1000);
+  updateUI();
+}
+
+function updateUI() {
+  const goalMs = goalHours * 3600000;
+  const fill = document.getElementById('ringFill');
+  const display = document.getElementById('timerDisplay');
+  const label = document.getElementById('timerLabel');
+  const badge = document.getElementById('statusBadge');
+  const btn = document.getElementById('mainBtn');
+  const emoji = document.getElementById('ringEmoji');
+
+  document.getElementById('goalDisplay').textContent = goalHours + '時間';
+
+  if (!startTime) {
+    // 待機中
+    fill.style.strokeDashoffset = circumference;
+    fill.classList.remove('eating');
+    display.textContent = '00:00:00';
+    label.textContent = '待機中';
+    badge.textContent = '待機中 💤';
+    badge.className = 'status-badge fasting';
+    emoji.textContent = '💤';
+    btn.textContent = '断食スタート 🔥';
+    btn.className = 'btn btn-start';
+    document.getElementById('startDisplay').textContent = '--:--';
+    document.getElementById('endDisplay').textContent = '--:--';
+    return;
+  }
+
+  const elapsed = Date.now() - startTime.getTime();
+  const remaining = goalMs - elapsed;
+  const pct = Math.min(1, elapsed / goalMs);
+  const offset = circumference * (1 - pct);
+
+  fill.style.strokeDashoffset = offset;
+  document.getElementById('startDisplay').textContent = fmtTime(startTime);
+  const endTime = new Date(startTime.getTime() + goalMs);
+  document.getElementById('endDisplay').textContent = fmtTime(endTime);
+
+  if (remaining > 0) {
+    // 断食中
+    display.textContent = fmtDuration(elapsed);
+    label.textContent = `残り ${fmtDuration(remaining)}`;
+    badge.textContent = '断食中 🔥';
+    badge.className = 'status-badge fasting';
+    fill.classList.remove('eating');
+    emoji.textContent = '🔥';
+    btn.textContent = '断食を終わりにする';
+    btn.className = 'btn btn-stop';
+  } else {
+    // 目標達成・食事OK
+    display.textContent = fmtDuration(elapsed);
+    label.textContent = '🌸 目標達成！';
+    badge.textContent = '食事OK 🌸';
+    badge.className = 'status-badge eating';
+    fill.classList.add('eating');
+    emoji.textContent = '🌸';
+    btn.textContent = '食事を終わりにする';
+    btn.className = 'btn btn-stop';
+  }
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="empty">まだ記録がないよ</div>';
+    return;
+  }
+
+  // 連続達成日数
+  let streak = 0;
+  for (const h of history) {
+    if (h.cleared) streak++;
+    else break;
+  }
+  document.getElementById('streakDisplay').innerHTML = streak > 0
+    ? `連続達成 <span>${streak}日</span> 🌸`
+    : '';
+
+  list.innerHTML = history.slice(0,10).map(h => `
+    <div class="history-item">
+      <span class="history-date">${h.date} ${h.start}〜</span>
+      <span class="history-duration">${h.duration}</span>
+      <span class="history-badge ${h.cleared?'clear':'fail'}">${h.cleared?'達成🌸':'途中'}</span>
+    </div>
+  `).join('');
+}
+
+// 初期化
+if (startTime) startTimer();
+else updateUI();
+renderHistory();
+
+// 連続達成表示初期化
+(function() {
+  let streak = 0;
+  for (const h of history) { if (h.cleared) streak++; else break; }
+  if (streak > 0) document.getElementById('streakDisplay').innerHTML = `連続達成 <span>${streak}日</span> 🌸`;
+})();
+</script>
+</body>
+</html>
